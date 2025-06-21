@@ -1,50 +1,33 @@
 export default async function handler(req, res) {
-  // ✅ Always set CORS headers
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-  // ✅ Respond to preflight
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
-  }
+  if (req.method === "OPTIONS") return res.status(200).end();
 
-  if (req.method !== "POST") {
-    return res.status(405).json({ message: "Method not allowed" });
-  }
+  if (req.method !== "POST") return res.status(405).json({ error: "Only POST method is supported" });
 
   const { message, history } = req.body;
-
-  if (!message) {
-    return res.status(400).json({ reply: "No message provided" });
-  }
 
   try {
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+        "Content-Type": "application/json"
       },
       body: JSON.stringify({
         model: "gpt-4o",
-        messages: [
-          ...(history || []).slice(-10),
-          { role: "user", content: message },
-        ],
-        temperature: 0.7,
-      }),
+        messages: history || [{ role: "user", content: message }]
+      })
     });
 
     const data = await response.json();
+    const reply = data.choices?.[0]?.message?.content || "❌ AI returned no response";
 
-    if (!data || !data.choices || !data.choices.length) {
-      return res.status(500).json({ reply: "Error from OpenAI." });
-    }
-
-    res.status(200).json({ reply: data.choices[0].message.content });
+    res.status(200).json({ reply });
   } catch (error) {
-    console.error("Server error:", error);
-    res.status(500).json({ reply: "Internal error." });
+    console.error("OpenAI error:", error);
+    res.status(500).json({ reply: "❌ Server error occurred" });
   }
 }
