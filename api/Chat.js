@@ -1,12 +1,13 @@
 export default async function handler(req, res) {
+  // ✅ Always set CORS headers
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+  // ✅ Respond to preflight
   if (req.method === "OPTIONS") {
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
     return res.status(200).end();
   }
-
-  res.setHeader("Access-Control-Allow-Origin", "*");
 
   if (req.method !== "POST") {
     return res.status(405).json({ message: "Method not allowed" });
@@ -14,33 +15,36 @@ export default async function handler(req, res) {
 
   const { message, history } = req.body;
 
+  if (!message) {
+    return res.status(400).json({ reply: "No message provided" });
+  }
+
   try {
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
         model: "gpt-4o",
         messages: [
           ...(history || []).slice(-10),
-          { role: "user", content: message }
+          { role: "user", content: message },
         ],
-        temperature: 0.7
-      })
+        temperature: 0.7,
+      }),
     });
 
     const data = await response.json();
 
-    if (!response.ok || !data.choices) {
-      console.error("OpenAI Error:", data);
-      return res.status(500).json({ reply: "OpenAI error." });
+    if (!data || !data.choices || !data.choices.length) {
+      return res.status(500).json({ reply: "Error from OpenAI." });
     }
 
-    return res.status(200).json({ reply: data.choices[0].message.content });
-  } catch (err) {
-    console.error("Server error:", err);
-    return res.status(500).json({ reply: "Internal server error." });
+    res.status(200).json({ reply: data.choices[0].message.content });
+  } catch (error) {
+    console.error("Server error:", error);
+    res.status(500).json({ reply: "Internal error." });
   }
 }

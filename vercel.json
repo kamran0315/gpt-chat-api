@@ -7,12 +7,7 @@
     {
       "src": "/api/chat",
       "methods": ["GET", "POST", "OPTIONS"],
-      "dest": "/api/chat.js",
-      "headers": {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type"
-      }
+      "dest": "/api/chat.js"
     }
   ]
 }
