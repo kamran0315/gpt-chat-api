@@ -1,36 +1,45 @@
 export default async function handler(req, res) {
-  // ✅ Add CORS headers
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-  // ✅ Handle OPTIONS preflight
-  if (req.method === "OPTIONS") {
+  if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
+  if (req.method !== 'POST') {
+    return res.status(405).json({ message: 'Method not allowed' });
+  }
+
   try {
-    const apiKey = process.env.OPENAI_API_KEY;
     const { message, history } = req.body;
 
     const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
         model: "gpt-4o",
-        messages: [...(history || []), { role: "user", content: message }]
+        messages: [
+          ...(history || []).slice(-10),
+          { role: "user", content: message }
+        ],
+        temperature: 0.7
       })
     });
 
-    const data = await openaiRes.json();
-    const reply = data.choices?.[0]?.message?.content || "Sorry, no reply.";
-    res.status(200).json({ reply });
+    const json = await openaiRes.json();
 
-  } catch (err) {
-    console.error("Server error:", err);
-    res.status(500).json({ reply: "Server error." });
+    if (openaiRes.ok && json.choices?.length > 0) {
+      return res.status(200).json({ reply: json.choices[0].message.content });
+    } else {
+      console.error("OpenAI API error:", json);
+      return res.status(500).json({ reply: "Something went wrong with OpenAI." });
+    }
+  } catch (error) {
+    console.error("API handler error:", error);
+    return res.status(500).json({ reply: "Internal server error." });
   }
 }
