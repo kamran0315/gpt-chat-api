@@ -4,7 +4,7 @@ export default async function handler(req, res) {
     const apiKey = process.env.OPENAI_API_KEY;
     const { message, history } = req.body;
 
-    const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${apiKey}`,
@@ -19,15 +19,12 @@ export default async function handler(req, res) {
       })
     });
 
-    const data = await openaiRes.json();
+    const data = await response.json();
 
-    if (data?.choices?.[0]?.message?.content) {
-      res.status(200).json({ reply: data.choices[0].message.content });
-    } else {
-      res.status(500).json({ reply: "Cannot process your request." });
-    }
+    const reply = data.choices?.[0]?.message?.content || "Sorry, no reply from the bot.";
+    res.status(200).json({ reply });
   } catch (err) {
-    console.error("Error from OpenAI API:", err);
+    console.error("Server error:", err);
     res.status(500).json({ reply: "Server error occurred." });
   }
 }
