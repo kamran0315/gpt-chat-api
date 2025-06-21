@@ -1,10 +1,8 @@
 export default async function handler(req, res) {
-  // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  // Handle preflight request
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
@@ -24,29 +22,36 @@ export default async function handler(req, res) {
   }
 
   try {
-    const apiRes = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
+        model: 'gpt-3.5-turbo', // switch to gpt-4 if needed
         messages: history || [{ role: 'user', content: message }],
         temperature: 0.7
       })
     });
 
-    const data = await apiRes.json();
+    const data = await response.json();
 
-    if (!data.choices || !data.choices[0]?.message?.content) {
-      return res.status(500).json({ error: 'AI returned no response' });
+    if (data.error) {
+      console.error('OpenAI API error:', data.error);
+      return res.status(500).json({ error: data.error.message || 'AI error' });
     }
 
-    return res.status(200).json({ reply: data.choices[0].message.content.trim() });
+    const reply = data.choices?.[0]?.message?.content;
 
-  } catch (err) {
-    console.error('AI fetch error:', err);
-    return res.status(500).json({ error: 'Failed to reach AI server' });
+    if (!reply) {
+      console.error('Empty AI response:', data);
+      return res.status(500).json({ error: 'No reply received from AI.' });
+    }
+
+    res.status(200).json({ reply: reply.trim() });
+  } catch (error) {
+    console.error('Fetch failed:', error);
+    res.status(500).json({ error: 'Failed to fetch from OpenAI.' });
   }
 }
