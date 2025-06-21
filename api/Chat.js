@@ -1,10 +1,10 @@
 export default async function handler(req, res) {
-  // ✅ Set CORS headers
+  // ✅ Add CORS headers
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-  // ✅ Handle CORS preflight (OPTIONS) request
+  // ✅ Handle OPTIONS preflight
   if (req.method === "OPTIONS") {
     return res.status(200).end();
   }
@@ -13,7 +13,7 @@ export default async function handler(req, res) {
     const apiKey = process.env.OPENAI_API_KEY;
     const { message, history } = req.body;
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${apiKey}`,
@@ -25,12 +25,12 @@ export default async function handler(req, res) {
       })
     });
 
-    const data = await response.json();
-
-    const reply = data.choices?.[0]?.message?.content || "Sorry, no reply from the bot.";
+    const data = await openaiRes.json();
+    const reply = data.choices?.[0]?.message?.content || "Sorry, no reply.";
     res.status(200).json({ reply });
+
   } catch (err) {
     console.error("Server error:", err);
-    res.status(500).json({ reply: "Server error occurred." });
+    res.status(500).json({ reply: "Server error." });
   }
 }
