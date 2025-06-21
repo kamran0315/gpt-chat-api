@@ -1,22 +1,18 @@
 {
-    "version": 2,
-    "builds": [
-      {
-        "src": "api/chat.js",
-        "use": "@vercel/node"
+  "version": 2,
+  "builds": [
+    { "src": "api/chat.js", "use": "@vercel/node" }
+  ],
+  "routes": [
+    {
+      "src": "/api/chat",
+      "methods": ["GET", "POST", "OPTIONS"],
+      "dest": "/api/chat.js",
+      "headers": {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type"
       }
-    ],
-    "routes": [
-      {
-        "src": "/api/chat",
-        "methods": ["GET", "POST", "OPTIONS"],
-        "headers": {
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type"
-        },
-        "dest": "/api/chat.js"
-      }
-    ]
-  }
-  
+    }
+  ]
+}
