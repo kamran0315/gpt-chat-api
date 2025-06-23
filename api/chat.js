@@ -1,78 +1,49 @@
-export const config = {
-  runtime: 'edge',
-};
+// api/chat.js
+export default async function handler(req, res) {
+  // ✅ CORS headers
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-const systemPrompt = `
-You are Karin, a helpful and friendly AI assistant for Programmetic.com.
-You assist users with questions related to the company’s services such as:
-- AI chatbot deployment
-- Workflow automation
-- API integration
-- Digital transformation
-- Streamlining business processes
+  if (req.method === "OPTIONS") {
+    res.status(200).end();
+    return;
+  }
 
-If a question is unrelated, kindly steer the user back to these services.
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
 
-After 2–3 replies, suggest booking a free consultation with:
-https://calendly.com/hello-programmetic
+  const { message, history } = req.body;
 
-Be professional, brief, and informative. Never pretend to be human — you're Karin, the AI from Programmetic.
-`;
-
-export default async function handler(req) {
-  if (req.method !== 'POST') {
-    return new Response('Only POST method is supported', {
-      status: 405,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
-      },
-    });
+  if (!message || !Array.isArray(history)) {
+    return res.status(400).json({ error: "Invalid request body" });
   }
 
   try {
-    const { message, history } = await req.json();
-
-    const messages = [
-      { role: 'system', content: systemPrompt },
-      ...(history || []),
-      { role: 'user', content: message },
-    ];
-
-    const completion = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
+    const apiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
       headers: {
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
-        messages,
+        model: "gpt-3.5-turbo",
+        messages: [
+          { role: "system", content: "You are Karin, a helpful assistant for Programmetic.com. Answer questions clearly and help users book a meeting if needed." },
+          ...history,
+          { role: "user", content: message },
+        ],
         temperature: 0.7,
       }),
     });
 
-    const data = await completion.json();
+    const data = await apiRes.json();
+    const reply = data?.choices?.[0]?.message?.content?.trim() || "❌ No reply received from AI.";
 
-    if (!data || !data.choices || !data.choices[0]?.message?.content) {
-      return new Response(JSON.stringify({ reply: "❌ No reply received from AI." }), {
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-      });
-    }
-
-    return new Response(JSON.stringify({ reply: data.choices[0].message.content }), {
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
-    });
-
-  } catch (error) {
-    console.error('OpenAI API error:', error);
-    return new Response(JSON.stringify({ reply: "❌ Error: Could not reach AI server." }), {
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-      status: 500,
-    });
+    res.status(200).json({ reply });
+  } catch (err) {
+    console.error("API error:", err);
+    res.status(500).json({ reply: "❌ Error: Could not reach AI server." });
   }
 }
