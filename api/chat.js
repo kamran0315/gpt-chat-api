@@ -3,23 +3,18 @@ export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
-  }
-
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Only POST method is supported" });
-  }
+  if (req.method === "OPTIONS") return res.status(200).end();
+  if (req.method !== "POST") return res.status(405).json({ error: "Only POST method is supported" });
 
   const { message, history = [] } = req.body;
 
-  if (!process.env.OPENAI_API_KEY) {
+  if (!process.env.OPENAI_API_KEY)
     return res.status(500).json({ reply: "❌ Missing OpenAI API key." });
-  }
 
   const serviceKeywords = [
-    "website", "design", "development", "SEO", "WordPress", "branding", "marketing", "support",
-    "hosting", "services", "MVP", "software", "AI", "AI agent", "workflow", "application"
+    "website", "design", "development", "seo", "wordpress", "branding",
+    "hosting", "mvp", "software", "ai", "agent", "workflows", "applications",
+    "support", "services"
   ];
 
   const bookingKeywords = ["book", "meeting", "appointment", "schedule", "call"];
@@ -29,18 +24,12 @@ export default async function handler(req, res) {
   const wantsToBook = bookingKeywords.some((kw) => messageLower.includes(kw));
 
   const userMessages = history.filter((m) => m.role === "user");
-  const recentNonServiceMessages = userMessages
-    .slice(-3)
-    .filter((m) => !serviceKeywords.some((kw) => m.content.toLowerCase().includes(kw)));
-
-  const tooManyIrrelevant = recentNonServiceMessages.length >= 2;
-  const shouldSuggestMeeting = userMessages.length >= 3 || wantsToBook;
+  const offTopicCount = userMessages.filter(m => !serviceKeywords.some(kw => m.content.toLowerCase().includes(kw))).length;
 
   const systemPrompt = {
     role: "system",
-    content: `You are Karin, a helpful, polite assistant for programmetic.com. You can answer any general questions briefly and respectfully. But your main job is to guide users toward the company's services: website design, development, SEO, hosting, MVPs, software development, AI agents, AI workflows, and AI applications.
-
-If a user asks 2–3 unrelated questions, politely redirect them back to what they need and how you can help. Mention the booking link after a few interactions or if they mention booking.`,
+    content:
+      "You are Karin, a polite and helpful assistant for programmetic.com. You can answer general questions in any language, but after 2–3 irrelevant queries, gently guide users back to website services like design, development, SEO, hosting, MVPs, AI agents, workflows, and applications. Suggest a meeting at https://calendly.com/hello-programmetic only if users mention booking or after a few exchanges. Be friendly and concise."
   };
 
   const updatedHistory = [systemPrompt, ...history.slice(-10), { role: "user", content: message }];
@@ -55,18 +44,18 @@ If a user asks 2–3 unrelated questions, politely redirect them back to what th
       body: JSON.stringify({
         model: "gpt-4o",
         messages: updatedHistory,
-        temperature: 0.7,
-      }),
+        temperature: 0.6,
+      })
     });
 
     const json = await openaiRes.json();
     let reply = json.choices?.[0]?.message?.content?.trim() || "❌ No reply received from AI.";
 
-    if (tooManyIrrelevant) {
-      reply += "\n\n🙏 By the way, I'm best at helping with our services like design, development, SEO, AI solutions, and more. Let me know how I can assist you.";
+    if (offTopicCount >= 2 && !isServiceRelated && !wantsToBook) {
+      reply += "\n\n🙏 Just a reminder: I specialize in services like web design, SEO, development, and AI workflows. Feel free to ask about those!";
     }
 
-    if (shouldSuggestMeeting) {
+    if ((userMessages.length >= 3 || wantsToBook) && !reply.includes("calendly.com")) {
       reply += "\n\n📅 Want to talk to us? Book a meeting here: https://calendly.com/hello-programmetic";
     }
 
