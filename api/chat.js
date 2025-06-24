@@ -34,14 +34,14 @@ export default async function handler(req, res) {
 
   if (!isServiceRelated && !wantsToBook) {
     const apologyMessage =
-      "🙏 I'm Karin, your assistant for website services at Programmetic.com. I can help with design, development, SEO, hosting, and more. Could you ask something about those services?";
+      "🙏 I'm Karin, your assistant for website services at Programmetic.com. I can help with design, development, SEO, hosting, MVP, software development, AI agent, AI workflows, AI applications and more. Could you ask something about those services?";
     return res.status(200).json({ reply: apologyMessage });
   }
 
   const systemPrompt = {
     role: "system",
     content:
-      "You are Karin, the polite and professional AI assistant for programmetic.com. You only answer questions related to our website services: design, development, SEO, WordPress, branding, hosting, mvp, software development, ai agent, ai workflows, ai applications or support. Politely redirect unrelated queries. Offer to book a meeting when asked or after a few messages.",
+      "You are Karin, a helpful assistant for programmetic.com. Only answer questions related to our website services (like web design, WordPress, SEO, branding, hosting, mvp, software development, ai agent, ai workflows, ai applications or support). Politely reject questions that are not related to these. Detect and reply in the user's language to make them feel at home — especially if it's Swedish, German, French, Arabic, Urdu, etc. Always be friendly and helpful.",
   };
 
   const updatedHistory = [systemPrompt, ...history.slice(-10), { role: "user", content: message }];
