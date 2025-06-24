@@ -18,38 +18,30 @@ export default async function handler(req, res) {
   }
 
   const serviceKeywords = [
-    "website",
-    "design",
-    "development",
-    "SEO",
-    "WordPress",
-    "branding",
-    "marketing",
-    "support",
-    "hosting",
-    "services"
+    "website", "design", "development", "seo", "wordpress", "branding",
+    "support", "hosting", "site", "web", "online", "services"
   ];
 
-  const bookingKeywords = ["book", "meeting", "appointment", "schedule", "call"];
+  const bookingKeywords = [
+    "book", "booking", "appointment", "schedule", "call", "meet", "talk", "demo"
+  ];
 
   const messageLower = message.toLowerCase();
-
   const isServiceRelated = serviceKeywords.some((kw) => messageLower.includes(kw));
   const wantsToBook = bookingKeywords.some((kw) => messageLower.includes(kw));
-
-  // After 3 interactions or explicit booking intent
-  const shouldSuggestMeeting = history.filter((m) => m.role === "user").length >= 3 || wantsToBook;
+  const shouldSuggestMeeting =
+    history.filter((m) => m.role === "user").length >= 3 || wantsToBook;
 
   if (!isServiceRelated && !wantsToBook) {
     const apologyMessage =
-      "🙏 I'm here to help with our website services like design, development, SEO, and support. Please ask me about those!";
+      "🙏 I'm Karin, your assistant for website services at Programmetic.com. I can help with design, development, SEO, hosting, and more. Could you ask something about those services?";
     return res.status(200).json({ reply: apologyMessage });
   }
 
   const systemPrompt = {
     role: "system",
     content:
-      "You are Karin, a helpful assistant for programmetic.com. Only answer questions related to our website services (like web design, WordPress, SEO, branding, hosting, or support). For anything else, kindly apologize and guide users back. Be friendly and helpful.",
+      "You are Karin, the polite and professional AI assistant for programmetic.com. You only answer questions related to our website services: design, development, SEO, WordPress, branding, hosting, mvp, software development, ai agent, ai workflows, ai applications or support. Politely redirect unrelated queries. Offer to book a meeting when asked or after a few messages.",
   };
 
   const updatedHistory = [systemPrompt, ...history.slice(-10), { role: "user", content: message }];
@@ -72,7 +64,7 @@ export default async function handler(req, res) {
     let reply = json.choices?.[0]?.message?.content?.trim() || "❌ No reply received from AI.";
 
     if (shouldSuggestMeeting) {
-      reply += "\n\n📅 Want to talk to us? Book a meeting here: https://calendly.com/hello-programmetic";
+      reply += "\n\n📅 Would you like to discuss your project? You can book a free meeting here: [Book Now](https://calendly.com/hello-programmetic)";
     }
 
     return res.status(200).json({ reply });
