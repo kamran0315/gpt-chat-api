@@ -18,30 +18,29 @@ export default async function handler(req, res) {
   }
 
   const serviceKeywords = [
-    "website", "design", "development", "seo", "wordpress", "branding",
-    "support", "hosting", "site", "web", "online", "services"
+    "website", "design", "development", "SEO", "WordPress", "branding", "marketing", "support",
+    "hosting", "services", "MVP", "software", "AI", "AI agent", "workflow", "application"
   ];
 
-  const bookingKeywords = [
-    "book", "booking", "appointment", "schedule", "call", "meet", "talk", "demo"
-  ];
+  const bookingKeywords = ["book", "meeting", "appointment", "schedule", "call"];
 
   const messageLower = message.toLowerCase();
   const isServiceRelated = serviceKeywords.some((kw) => messageLower.includes(kw));
   const wantsToBook = bookingKeywords.some((kw) => messageLower.includes(kw));
-  const shouldSuggestMeeting =
-    history.filter((m) => m.role === "user").length >= 3 || wantsToBook;
 
-  if (!isServiceRelated && !wantsToBook) {
-    const apologyMessage =
-      "🙏 I'm Karin, your assistant for website services at Programmetic.com. I can help with design, development, SEO, hosting, MVP, software development, AI agent, AI workflows, AI applications and more. Could you ask something about those services?";
-    return res.status(200).json({ reply: apologyMessage });
-  }
+  const userMessages = history.filter((m) => m.role === "user");
+  const recentNonServiceMessages = userMessages
+    .slice(-3)
+    .filter((m) => !serviceKeywords.some((kw) => m.content.toLowerCase().includes(kw)));
+
+  const tooManyIrrelevant = recentNonServiceMessages.length >= 2;
+  const shouldSuggestMeeting = userMessages.length >= 3 || wantsToBook;
 
   const systemPrompt = {
     role: "system",
-    content:
-      "You are Karin, a helpful assistant for programmetic.com. Only answer questions related to our website services (like web design, WordPress, SEO, branding, hosting, mvp, software development, ai agent, ai workflows, ai applications or support). Politely reject questions that are not related to these. Detect and reply in the user's language to make them feel at home — especially if it's Swedish, German, French, Arabic, Urdu, etc. Always be friendly and helpful.",
+    content: `You are Karin, a helpful, polite assistant for programmetic.com. You can answer any general questions briefly and respectfully. But your main job is to guide users toward the company's services: website design, development, SEO, hosting, MVPs, software development, AI agents, AI workflows, and AI applications.
+
+If a user asks 2–3 unrelated questions, politely redirect them back to what they need and how you can help. Mention the booking link after a few interactions or if they mention booking.`,
   };
 
   const updatedHistory = [systemPrompt, ...history.slice(-10), { role: "user", content: message }];
@@ -56,15 +55,19 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         model: "gpt-4o",
         messages: updatedHistory,
-        temperature: 0.6,
+        temperature: 0.7,
       }),
     });
 
     const json = await openaiRes.json();
     let reply = json.choices?.[0]?.message?.content?.trim() || "❌ No reply received from AI.";
 
+    if (tooManyIrrelevant) {
+      reply += "\n\n🙏 By the way, I'm best at helping with our services like design, development, SEO, AI solutions, and more. Let me know how I can assist you.";
+    }
+
     if (shouldSuggestMeeting) {
-      reply += "\n\n📅 Would you like to discuss your project? You can book a free meeting here: [Book Now](https://calendly.com/hello-programmetic)";
+      reply += "\n\n📅 Want to talk to us? Book a meeting here: https://calendly.com/hello-programmetic";
     }
 
     return res.status(200).json({ reply });
